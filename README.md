@@ -26,7 +26,7 @@ Download the [deploy/kuberhealthy.yaml](https://raw.githubusercontent.com/Comcas
 
 ### Prometheus Alerts
 
-A `ServiceMonitor` configuration is available at [deploy/servicemonitor.yaml](https://raw.githubusercontent.com/Comcast/kuberhealthy/master/deploy/servicemonitor.yaml).
+A `ServiceMonitor` configuration is available at [deploy/servicemonitor.yaml](https://raw.githubusercontent.com/Comcast/kuberhealthy/master/deploy/servicemonitor.yaml).  If you are using Prometheus Operator, Deploy this servicemonitor configuration into your Prometheus namespace.  Be sure to update the `prometheus` label to match your Prometheus deployment name.
 
 
 ## What is Kuberhealthy?
