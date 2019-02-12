@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+
+package check.model;
+
+option go_package = "model";
+
+message Check {
+    string name = 1;
+    string namespace = 2;
+    google.protobuf.Duration interval = 3;
+    google.protobuf.Duration timeout = 4;
+    message Status {
+        bool healthy = 1;
+        repeated string errors = 2;
+    }
+    Status currentStatus = 5;
+}
+
+message Request {}
+message Response {
+    Check check = 1;
+    message Error {
+        string error = 1;
+    }
+    Error error = 2;
+}
+
+
+service KuberhealthyCheck {
+    rpc Start(Request) returns (Response) {}
+    rpc Stop(Request) returns (Response) {}
+    rpc Status(Request) returns (Response) {}
+}
+
