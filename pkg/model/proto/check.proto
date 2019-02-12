@@ -19,18 +19,14 @@ message Check {
 }
 
 message Request {}
+
 message Response {
     Check check = 1;
-    message Error {
-        string error = 1;
-    }
-    Error error = 2;
 }
-
 
 service KuberhealthyCheck {
     rpc Start(Request) returns (Response) {}
-    rpc Stop(Request) returns (Response) {}
+    rpc Shutdown(Request) returns (Response) {}
     rpc Status(Request) returns (Response) {}
 }
 

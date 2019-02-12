@@ -1,81 +1,80 @@
-// Package componentStatus implements a componentstatus checker.
-package componentStatus // import "github.com/Comcast/kuberhealthy/pkg/checks/componentStatus"
+// Package componentStatus implements a componentstatus CheckAgent.
+package main
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	// required for oidc kubectl testing
-	"k8s.io/client-go/kubernetes"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+	"github.com/golang/protobuf/ptypes/duration"
 
+	"github.com/Comcast/kuberhealthy/pkg/model"
+
+	// required for oidc kubectl testing
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 func init() {
 }
 
-// Checker validates componentstatus objects within the cluster.
-type Checker struct {
-	Errors           []string
+func main() {
+
+}
+
+// CheckAgent validates componentstatus objects within the cluster.
+type CheckAgent struct {
+	model.Check
 	FailureTimeStamp map[string]time.Time
 	MaxTimeInFailure float64 // TODO - make configurable
 	client           *kubernetes.Clientset
 }
 
-// New returns a new Checker
-func New() *Checker {
-	return &Checker{
+// New returns a new CheckAgent
+func New(client kubernetes.Clientset) model.KuberhealthyCheckServer {
+	return &CheckAgent{
 		FailureTimeStamp: make(map[string]time.Time),
 		MaxTimeInFailure: 300,
-		Errors:           []string{},
+		client:           &client,
+		Check: model.Check{
+			Interval: &duration.Duration{
+				Seconds: 120,
+			},
+			Name: "ComponentStatusCheckAgent",
+			Timeout: &duration.Duration{
+				Seconds: 60,
+			},
+			CurrentStatus: &model.Check_Status{
+				Errors:  []string{},
+				Healthy: true,
+			},
+		},
 	}
-}
-
-// Name returns the name of this checker
-func (csc *Checker) Name() string {
-	return "ComponentStatusChecker"
-}
-
-// CheckNamespace returns the namespace of this checker
-func (csc *Checker) CheckNamespace() string {
-	return ""
-}
-
-// Interval returns the interval at which this check runs
-func (csc *Checker) Interval() time.Duration {
-	return time.Minute * 2
-}
-
-// Timeout returns the maximum run time for this check before it times out
-func (csc *Checker) Timeout() time.Duration {
-	return time.Minute * 1
 }
 
 // Shutdown is implemented to satisfy the KuberhealthyCheck interface, but
 // no action is necessary.
-func (csc *Checker) Shutdown() error {
-	return nil
+func (csc *CheckAgent) Shutdown(context.Context, *model.Request) (*model.Response, error) {
+	return nil, nil
 }
 
-// CurrentStatus returns the status of the check as of right now
-func (csc *Checker) CurrentStatus() (bool, []string) {
-	if len(csc.Errors) > 0 {
-		return false, csc.Errors
-	}
-	return true, csc.Errors
+// Status returns the status of the check as of right now
+func (csc *CheckAgent) Status(ctx context.Context, req *model.Request) (*model.Response, error) {
+	return &model.Response{
+		Check: &csc.Check,
+	}, nil
 }
 
 // clearErrors clears all errors
-func (csc *Checker) clearErrors() {
-	csc.Errors = []string{}
+func (csc *CheckAgent) clearErrors() {
+	csc.Check.CurrentStatus.Errors = []string{}
 }
 
-// Run implements the entrypoint for check execution
-func (csc *Checker) Run(client *kubernetes.Clientset) error {
+// Start implements the entrypoint for check execution
+func (csc *CheckAgent) Start(ctx context.Context, req *model.Request) (*model.Response, error) {
 	doneChan := make(chan error)
-	csc.client = client
 	// run the check in a goroutine and notify the doneChan when completed
 	go func(doneChan chan error) {
 		err := csc.doChecks()
@@ -84,24 +83,24 @@ func (csc *Checker) Run(client *kubernetes.Clientset) error {
 
 	// wait for either a timeout or job completion
 	select {
-	case <-time.After(csc.Interval()):
+	case <-time.After(durationToTime(*csc.Check.Interval)):
 		// The check has timed out because its time to run again
-		return errors.New("Failed to complete checks for " + csc.Name() + " in time!  Next run came up but check was still running.")
-	case <-time.After(csc.Timeout()):
+		return nil, errors.New("Failed to complete checks for " + csc.Check.Name + " in time!  Next run came up but check was still running.")
+	case <-time.After(durationToTime(*csc.Check.Timeout)):
 		// The check has timed out after its specified timeout period
-		return errors.New("Failed to complete checks for " + csc.Name() + " in time!  Timeout was reached.")
+		return nil, errors.New("Failed to complete checks for " + csc.Check.Name + " in time!  Timeout was reached.")
 	case err := <-doneChan:
-		return err
+		return nil, err
 	}
 }
 
 // doChecks executes checks.
-func (csc *Checker) doChecks() error {
+func (csc *CheckAgent) doChecks() error {
 
 	// list componentstatuses
 	componentList, err := csc.client.CoreV1().ComponentStatuses().List(metav1.ListOptions{})
 	if err != nil {
-		csc.Errors = []string{"Error creating client when checking componentstatuses: " + err.Error()}
+		csc.Check.CurrentStatus.Errors = []string{"Error creating client when checking componentstatuses: " + err.Error()}
 		return nil
 	}
 
@@ -143,11 +142,15 @@ func (csc *Checker) doChecks() error {
 
 	// if errors found, set them, if not, clear all
 	if len(errorMessages) > 0 {
-		csc.Errors = errorMessages
+		csc.Check.CurrentStatus.Errors = errorMessages
 	} else {
 		csc.clearErrors()
 	}
 
 	// nil indicates no system error occurred when checking
 	return nil
+}
+
+func durationToTime(d duration.Duration) time.Duration {
+	return time.Duration(d.GetSeconds()) * time.Second
 }
