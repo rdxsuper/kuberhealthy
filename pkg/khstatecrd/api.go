@@ -9,9 +9,11 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package khstatecrd
+package khstatecrd // import "github.com/Comcast/kuberhealthy/pkg/khstatecrd"
 
 import (
+	"os"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -19,7 +21,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var namespace = "kuberhealthy"
+var namespace = os.Getenv("POD_NAMESPACE")
 
 const resource = "khstates"
 const group = "comcast.github.io"

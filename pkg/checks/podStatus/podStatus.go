@@ -1,7 +1,7 @@
 // Package podStatus implements a pod health checker for Kuberhealthy.  Pods are checked
 // to ensure they are not restarting too much and are in a healthy lifecycle
 // phase.
-package podStatus
+package podStatus // import "github.com/Comcast/kuberhealthy/pkg/checks/podStatus"
 
 import (
 	"errors"
@@ -99,7 +99,7 @@ func (psc *Checker) Run(client *kubernetes.Clientset) error {
 	}
 }
 
-// doChecks does validations on pod status and returns an error if one is encounted
+// doChecks does validations on pod status and returns an error if one is encountered
 // while communicating with the API. Errors from pods are set directly and
 // only system errors are returned
 func (psc *Checker) doChecks() error {
@@ -132,7 +132,7 @@ func (psc *Checker) podFailures() (failures []string, err error) {
 	if err != nil {
 		return
 	}
-	// process failures and manage failed continers in psc.FailureTimeStamp
+	// process failures and manage failed containers in psc.FailureTimeStamp
 	for _, pod := range pods.Items {
 
 		// dont check pod health if the pod is less than 10 minutes old
